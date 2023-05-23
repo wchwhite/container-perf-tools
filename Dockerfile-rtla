@@ -1,0 +1,52 @@
+#
+# This Dockerfile is part of the container-perf-tools project.
+#
+# Copyright (C) 2023 Red Hat, Inc. - Chris White
+#
+# The script content of this file is licensed under the GNU General Public License version 2 (GPLv2).
+# You can redistribute and/or modify it under the terms of the GPLv2 as published by
+# the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+#
+# The resulting Docker image is provided "as is" without warranty of any kind, either express or implied.
+# It may include other software components with various licenses. Please consult the license information
+# of each component for full details.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program; 
+# if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+FROM centos:stream9
+# In order for this to run on ubi8 or cs8, we need to package libtraceevent-devel libtracefs-devel in rhel8.
+# Set user to root
+USER root
+# Install required packages and dependencies for building/installing rtla. Right now this is configured for cs9
+RUN dnf -y update && dnf --enablerepo=crb -y install libtraceevent-devel libtracefs-devel python3-docutils git make gcc wget bzip2 && dnf clean all
+# Pull the most recent copy of rtla for linux tools. TODO: Make this pull from redhat repos
+RUN git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
+    cd linux/tools/tracing/rtla/ && \
+    make && \
+    make install && \
+    cd ../../../../ && rm -rf linux
+
+# Install dumby init system
+RUN curl -L -o /root/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
+    && chmod 777 /root/dumb-init
+
+# Installs the functions.sh library needed for cmd.sh hook
+# This includes the functions for convert_number_range, get_allowed_cpuset, disable_balance, enable_balance
+COPY common-libs /root/common-libs
+# Moving this to the end so that rebuilds are quicker when modifying cmd.sh
+COPY rtla/cmd.sh /root
+RUN chmod 777 /root/cmd.sh
+
+# Create a log directory
+RUN mkdir /var/log/app
+
+WORKDIR /root
+ENTRYPOINT ["/root/dumb-init", "--"]
+CMD ["/root/cmd.sh"]
+
+
