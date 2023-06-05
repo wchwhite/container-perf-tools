@@ -148,19 +148,15 @@ if [[ "$rtla_top" == "y" ]]; then
     mode="top"
 fi
 
-# Placeholder for hwnoise command creation
+# hwnoise does not support either hist or top, so set this to blank so we can use generic logic.
 if [[ "$rtla_mode" == "hwnoise" ]]; then
-    echo "The tracer requirements are not currently in the rhel9, exiting as this feature is not currently supported" | storage
-    exit 1
-else
-    # The other two modes have the same command structure
-    # Command to run rtla-timerlat in either 'top' or 'hist' mode
-    command_args=("rtla" "$rtla_mode" "$mode")
+    mode=""
 fi
 
+# Set the generic shared components of the tools
+command_args=("rtla" "$rtla_mode" "$mode")
 
-
-# Check if we should set a timeout for the rtla run
+# Set the generic shared options
 if [[ -z "${DURATION}" ]]; then
     echo "running rtla with out timeout" | storage
 else
