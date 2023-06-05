@@ -43,6 +43,19 @@ manual=${manual:-n}
 
 rtla_results="/root/rtla_results.txt"
 
+mode="hist"
+run_mode="hist"
+if [[ "$rtla_top" == "y" ]]; then
+    mode="top"
+    run_mode="top"
+fi
+
+# hwnoise does not support either hist or top, so set this to blank so we can use generic logic.
+if [[ "$rtla_mode" == "hwnoise" ]]; then
+    mode=""
+    run_mode=top
+fi
+
 function sigfunc() {
     if [ "${DISABLE_CPU_BALANCE:-n}" == "y" ]; then
         enable_balance
@@ -60,15 +73,15 @@ function create_file() {
     timestamp=$(date +%Y%m%d%H%M%S)
 
     # Get the latest file number
-    last_file_number=$(ls $log_dir/ | grep $rtla_mode | sort -n | tail -n 1 | cut -c 1-1)
+    last_file_number=$(ls $log_dir/ | grep $rtla_mode | grep $run_mode | sort -n | tail -n 1 | cut -c 1-1)
 
     # If no files found create the first file
     if [ -z "$last_file_number" ]; then
-        file_path="$log_dir/1_$rtla_mode-$timestamp.log"
+        file_path="$log_dir/1_"$rtla_mode"_"$run_mode"-$timestamp.log"
     else
         # If files found, increment the last file number and create a new file
         new_file_number=$((last_file_number + 1))
-        file_path="$log_dir/${new_file_number}_$rtla_mode-$timestamp.log"
+        file_path="$log_dir/${new_file_number}_"$rtla_mode"_$run_mode-$timestamp.log"
     fi
 
     touch "$file_path"
@@ -76,7 +89,7 @@ function create_file() {
 }
 
 # No storage option for rtla top mode
-if [[ "$storage_mode" == "y" && "$rtla_top" == "n" ]]; then
+if [[ "$storage_mode" == "y" ]]; then
     path=$(create_file)
     echo "Storing log files at $path" | tee -a $path
     storage() { tee -a "$path"; }
