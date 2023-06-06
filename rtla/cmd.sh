@@ -65,23 +65,29 @@ function sigfunc() {
 
 function create_file() {
     log_dir="/var/log/app"
-    # Check if directory exists, if not, create directory
-    if [ ! -d "$log_dir" ]; then
-        mkdir -p "$log_dir"
-    fi
+
+    # List of required directories
+    required_dirs=("timerlat/hist" "timerlat/top" "osnoise/hist" "osnoise/top" "hwnoise/hist" "hwnoise/top")
+
+    # Check if directories exist, if not, create them
+    for dir in "${required_dirs[@]}"; do
+        if [ ! -d "$log_dir/$dir" ]; then
+            mkdir -p "$log_dir/$dir"
+        fi
+    done
 
     timestamp=$(date +%Y%m%d%H%M%S)
 
     # Get the latest file number
-    last_file_number=$(ls $log_dir/ | grep $rtla_mode | grep $run_mode | sort -n | tail -n 1 | cut -c 1-1)
+    last_file_number=$(ls $log_dir/"$rtla_mode"/"$run_mode" | grep $rtla_mode | grep $run_mode | sort -n | tail -n 1 | cut -c 1-1)
 
     # If no files found create the first file
     if [ -z "$last_file_number" ]; then
-        file_path="$log_dir/1_"$rtla_mode"_"$run_mode"-$timestamp.log"
+        file_path="$log_dir/"$rtla_mode"/"$run_mode"/1_"$rtla_mode"_"$run_mode"-$timestamp.log"
     else
         # If files found, increment the last file number and create a new file
         new_file_number=$((last_file_number + 1))
-        file_path="$log_dir/${new_file_number}_"$rtla_mode"_$run_mode-$timestamp.log"
+        file_path="$log_dir/"$rtla_mode"/"$run_mode"/${new_file_number}_"$rtla_mode"_"$run_mode"-$timestamp.log"
     fi
 
     touch "$file_path"
