@@ -151,10 +151,10 @@ echo "allowed cpu list: ${cpulist}" | storage
 uname=`uname -nr`
 echo "$uname"
 
-cpulist=`convert_number_range ${cpulist} | tr , '\n' | sort -n | uniq`
+cpulist_stress=`convert_number_range ${cpulist} | tr , '\n' | sort -n | uniq`
 
 declare -a cpus
-cpus=(${cpulist})
+cpus=(${cpulist_stress})
 
 if [ "${DISABLE_CPU_BALANCE:-n}" == "y" ]; then
     disable_balance
@@ -173,7 +173,7 @@ if [[ "$rtla_mode" == "hwnoise" ]]; then
 fi
 
 # Set the generic shared components of the tools
-command_args=("rtla" "$rtla_mode" "$mode")
+command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist")
 
 # Set the generic shared options
 if [[ -z "${DURATION}" ]]; then
