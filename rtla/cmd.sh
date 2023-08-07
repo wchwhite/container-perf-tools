@@ -28,6 +28,9 @@
 #   storage_mode (default "n", choices y/n, changes rtla_mode to hist.)
 #   pause (default: y, pauses after run. choices y/n)
 #   delay (default 0, specify how many seconds to delay before test start)
+#   aa_threshold (default 100, sets automatic trace mode stopping the session if latency in us is hit. A value of 0 disables this feature)
+#   threshold (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
+
 
 source common-libs/functions.sh
 
@@ -40,6 +43,8 @@ rtla_top=${rtla_top:-n}
 delay=${delay:-0}
 DURATION=${DURATION:-""}
 manual=${manual:-n}
+aa_threshold=${aa_threshold:-100}
+threshold=${threshold:-0}
 
 rtla_results="/root/rtla_results.txt"
 
@@ -187,6 +192,16 @@ if [[ -n "${PRIO}" ]]; then
 else
     echo "Running with default priority." | storage
 fi
+
+# Set the generic shared components of the tools
+if [[ "${threshold}" -ne 0 ]]; then
+    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist" "-T" "$threshold")
+elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
+    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist")
+else
+    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist" "-a" "$aa_threshold")
+fi
+
 
 echo "running cmd: "${command_args[@]}"" | storage
 if [[ "${manual}" == "y" ]]; then
