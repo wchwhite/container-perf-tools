@@ -13,6 +13,26 @@
 #   threshold (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
 #   events (optional, defaults to blank, allows specifying multiple trace events)
 
+if [[ "${help:-}" == "y" ]]; then
+    echo "Usage: ./scriptname.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  help=y               Show this help message"
+    echo "  DURATION=value       Set the duration. Default is no timer for osnoise and timerlat, the default for hwnoise is 24h."
+    echo "  DISABLE_CPU_BALANCE=value Set whether to disable CPU balance. Default is 'n'. Choices are 'y' or 'n'."
+    echo "  PRIO=value           Set RT priority. Default is ''."
+    echo "                       Choices are [policy:priority]. Examples: fifo=f:10, round-robin=r:5,other=o:1, deadline=d:500000:1000000."
+    echo "  rtla_top=value       Default is 'n'. Choices are 'y' or 'n'."
+    echo "  rtla_mode=value      Set mode. Default is 'error'. Choices are 'timerlat', 'hwnoise', or 'osnoise'."
+    echo "  storage_mode=value   Set storage mode. Default is 'n'. Choices are 'y' or 'n'."
+    echo "  pause=value          Pause after run. Default is 'y'. Choices are 'y' or 'n'."
+    echo "  delay=value          Specify how many seconds to delay before test start. Default is 0."
+    echo "  aa_threshold=value   Sets automatic trace mode stopping the session if latency in us is hit. Default is 100."
+    echo "  threshold=value      If set, stops trace if the thread latency is higher than the value in us. Default is 0."
+    echo "  events=value         Allows specifying multiple trace events. Default is blank."
+    exit 0
+fi
+
 
 source common-libs/functions.sh
 
@@ -104,6 +124,8 @@ if [[ -n $PRIO ]]; then
     fi
 fi
 #I need to add a custom param option to feed in a string of extra options
+
+
 
 
 # Check if events string is not blank
