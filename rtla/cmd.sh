@@ -52,7 +52,11 @@ events=${events:-""}
 custom_options=${custom_options:-""}
 
 # convert the custom_options string into an array
+original_ifs="$IFS" #for resetting IFS
 IFS=' ' read -r -a custom_options_arr <<< "$custom_options"
+IFS=$original_ifs
+IFS=',' read -r -a events_array <<< $events
+IFS=$original_ifs
 
 rtla_results="/root/rtla_results.txt"
 
@@ -134,32 +138,14 @@ fi
 
 
 # Check if events string is not blank
-if [[ -n "$events" ]]; then
-  # Convert events string to an array
-  IFS=' ' read -r -a events_arr <<< "$events"
-  
-  # Validate each element in the array
-  for index in "${!events_arr[@]}"; do
-    event="${events_arr[index]}"
-    
-    # If element is '-e', next element should be a valid filter
-    if [[ "$event" == '-e' ]]; then
-      if (( index + 1 < ${#events_arr[@]} )); then
-        filter="${events_arr[index + 1]}"
-        if ! echo "$filter" | grep -Pq "^[a-zA-Z0-9_]+(:[a-zA-Z0-9_]+)?$"; then
-          echo "Invalid filter format: $filter. It must be one word or two sets of words with a colon in between. Each word can include underscore '_' but no spaces."
-          exit 1
-        fi
-      else
-        echo "No filter found after '-e'. Please ensure each '-e' is followed by a valid filter."
+# Validate each element in the array
+for e in "${events_arr[@]}"; do
+    # Validate each event against the desired regex pattern
+    if ! echo "$e" | grep -Pq "^[a-zA-Z0-9_]+(:[a-zA-Z0-9_]+)?$"; then
+        echo "Invalid event format: $e. It must be one word or two sets of words with a colon in between. Each word can include underscore '_' but no spaces."
         exit 1
-      fi
-    elif [[ "$event" == -* ]]; then
-      echo "Invalid flag: $event. The only allowed flag is '-e'."
-      exit 1
     fi
-  done
-fi
+done
 
 
 
@@ -235,14 +221,6 @@ else
     echo "Running with default priority." | storage
 fi
 
-if [[ "${threshold}" -ne 0 ]]; then
-    command_args=("${command_args[@]}" "-T" "$threshold")
-elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
-    echo "Not using --auto-analysis feature"
-else
-    command_args=("${command_args[@]}" "-a" "$aa_threshold")
-fi
-
 if [[ -n "$custom_options" ]]; then
     for opt in "${custom_options_arr[@]}"; do
         command_args=("${command_args[@]}" "$opt")
@@ -250,9 +228,18 @@ if [[ -n "$custom_options" ]]; then
 fi
 
 if [[ -n "$events" ]]; then
-    command_args=("${command_args[@]}" "$events")
+    for e in "${events_array[@]}"; do
+        command_args=("${command_args[@]}" "-e" "$e")
+    done
 fi
 
+if [[ "${threshold}" -ne 0 ]]; then
+    command_args=("${command_args[@]}" "-T" "$threshold")
+elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
+    echo "Not using --auto-analysis feature"
+else
+    command_args=("${command_args[@]}" "-a" "$aa_threshold")
+fi
 
 
 echo "running cmd: "${command_args[@]}"" | storage
