@@ -11,6 +11,7 @@
 #   delay (default 0, specify how many seconds to delay before test start)
 #   aa_threshold (default 100, sets automatic trace mode stopping the session if latency in us is hit. A value of 0 disables this feature)
 #   threshold (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
+#   events (optional, defaults to blank, allows specifying multiple trace events)
 
 
 source common-libs/functions.sh
@@ -26,6 +27,7 @@ DURATION=${DURATION:-""}
 manual=${manual:-n}
 aa_threshold=${aa_threshold:-100}
 threshold=${threshold:-0}
+events=${events:-""}
 
 rtla_results="/root/rtla_results.txt"
 
@@ -101,6 +103,38 @@ if [[ -n $PRIO ]]; then
         PRIO=""
     fi
 fi
+#I need to add a custom param option to feed in a string of extra options
+
+
+# Check if events string is not blank
+if [[ -n "$events" ]]; then
+  # Convert events string to an array
+  IFS=' ' read -r -a events_arr <<< "$events"
+  
+  # Validate each element in the array
+  for index in "${!events_arr[@]}"; do
+    event="${events_arr[index]}"
+    
+    # If element is '-e', next element should be a valid filter
+    if [[ "$event" == '-e' ]]; then
+      if (( index + 1 < ${#events_arr[@]} )); then
+        filter="${events_arr[index + 1]}"
+        if ! echo "$filter" | grep -Pq "^[a-zA-Z0-9_]+(:[a-zA-Z0-9_]+)?$"; then
+          echo "Invalid filter format: $filter. It must be one word or two sets of words with a colon in between. Each word can include underscore '_' but no spaces."
+          exit 1
+        fi
+      else
+        echo "No filter found after '-e'. Please ensure each '-e' is followed by a valid filter."
+        exit 1
+      fi
+    elif [[ "$event" == -* ]]; then
+      echo "Invalid flag: $event. The only allowed flag is '-e'."
+      exit 1
+    fi
+  done
+fi
+
+
 
 echo "############# dumping env ###########" | storage
 env | storage
@@ -174,14 +208,18 @@ else
     echo "Running with default priority." | storage
 fi
 
-# Set the generic shared components of the tools
 if [[ "${threshold}" -ne 0 ]]; then
-    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist" "-T" "$threshold")
+    command_args=("${command_args[@]}" "-T" "$threshold")
 elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
-    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist")
+    echo "Not using --auto-analysis feature"
 else
-    command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist" "-a" "$aa_threshold")
+    command_args=("${command_args[@]}" "-a" "$aa_threshold")
 fi
+
+if [[ -n "$events" ]]; then
+    command_args=("${command_args[@]}" "$events")
+fi
+
 
 
 echo "running cmd: "${command_args[@]}"" | storage
