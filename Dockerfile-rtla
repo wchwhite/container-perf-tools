@@ -44,7 +44,8 @@ RUN if [[ "$RTLA_UPSTREAM" == "true" ]]; then \
         make && \
         make install && \
         cd ../../../../ && rm -rf linux; \
-        dnf remove -y libtraceevent-devel libtracefs-devel python3-docutils git make gcc wget bzip2; \ 
+        # Only remove packages that are not required at runtime
+        dnf remove -y python3-docutils git make gcc wget bzip2; \ 
     else \
         dnf install rtla -y; \
         echo "INFO: Pulling from repos. Please use '--build-arg RTLA_UPSTREAM=true' to build from upstream"; \   
