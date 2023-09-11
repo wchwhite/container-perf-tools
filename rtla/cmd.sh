@@ -30,6 +30,7 @@ if [[ "${help:-}" == "y" ]]; then
     echo "  aa_threshold=value   Sets automatic trace mode stopping the session if latency in us is hit. Default is 100."
     echo "  threshold=value      If set, stops trace if the thread latency is higher than the value in us. Default is 0."
     echo "  events=value         Allows specifying multiple trace events. Default is blank."
+    echo "  custom_options=value Allows specifying custom options. Default is blank."
     exit 0
 fi
 
@@ -48,6 +49,10 @@ manual=${manual:-n}
 aa_threshold=${aa_threshold:-100}
 threshold=${threshold:-0}
 events=${events:-""}
+custom_options=${custom_options:-""}
+
+# convert the custom_options string into an array
+IFS=' ' read -r -a custom_options_arr <<< "$custom_options"
 
 rtla_results="/root/rtla_results.txt"
 
@@ -236,6 +241,12 @@ elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
     echo "Not using --auto-analysis feature"
 else
     command_args=("${command_args[@]}" "-a" "$aa_threshold")
+fi
+
+if [[ -n "$custom_options" ]]; then
+    for opt in "${custom_options_arr[@]}"; do
+        command_args=("${command_args[@]}" "$opt")
+    done
 fi
 
 if [[ -n "$events" ]]; then
