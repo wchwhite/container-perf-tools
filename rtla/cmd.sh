@@ -4,14 +4,15 @@
 #   DURATION (default: no timer for osnoise and timerlat, the default for hwnoise is 24h)
 #   DISABLE_CPU_BALANCE (default "n", choices y/n)
 #   PRIO (RT priority, default "". If no option passed, uses rtla defaults. Choices [policy:priority]. fifo=f:10, round-robin=r:5,other=o:1, deadline=d:500000:1000000)
-#   rtla_top (default "n", choices y/n, ignored for hwnoise. Defaults to build a histogram when n)
-#   rlta_mode (default "error", choices "timerlat", "hwnoise", or "osnoise". If none are given, we error.)
-#   storage_mode (default "n", choices y/n, changes rtla_mode to hist.)
-#   pause (default: y, pauses after run. choices y/n)
-#   delay (default 0, specify how many seconds to delay before test start)
-#   aa_threshold (default 100, sets automatic trace mode stopping the session if latency in us is hit. A value of 0 disables this feature)
-#   threshold (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
-#   events (optional, defaults to blank, allows specifying multiple trace events)
+#   RTLA_TOP (default "n", choices y/n, ignored for hwnoise. Defaults to build a histogram when n)
+#   RTLA_MODE (default "error", choices "timerlat", "hwnoise", or "osnoise". If none are given, we error.)
+#   STORAGE_MODE (default "n", choices y/n, changes RTLA_MODE to hist.)
+#   PAUSE (default: y, pauses after run. choices y/n)
+#   DELAY (default 0, specify how many seconds to delay before test start)
+#   AA_THRESHOLD (default 100, sets automatic trace mode stopping the session if latency in us is hit. A value of 0 disables this feature)
+#   THRESHOLD (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
+#   EVENTS (Allows specifying multiple trace events. Default is blank. This should be provided as a comma separated list.)
+#   CUSTOM_OPTIONS (Allows specifying custom options. Default is blank. Provide as a space separated list of options.)
 
 if [[ "${help:-}" == "y" ]]; then
     echo "Usage: ./scriptname.sh [OPTIONS]"
@@ -22,15 +23,15 @@ if [[ "${help:-}" == "y" ]]; then
     echo "  DISABLE_CPU_BALANCE=value Set whether to disable CPU balance. Default is 'n'. Choices are 'y' or 'n'."
     echo "  PRIO=value           Set RT priority. Default is ''."
     echo "                       Choices are [policy:priority]. Examples: fifo=f:10, round-robin=r:5,other=o:1, deadline=d:500000:1000000."
-    echo "  rtla_top=value       Default is 'n'. Choices are 'y' or 'n'."
-    echo "  rtla_mode=value      Set mode. Default is 'error'. Choices are 'timerlat', 'hwnoise', or 'osnoise'."
-    echo "  storage_mode=value   Set storage mode. Default is 'n'. Choices are 'y' or 'n'."
-    echo "  pause=value          Pause after run. Default is 'y'. Choices are 'y' or 'n'."
-    echo "  delay=value          Specify how many seconds to delay before test start. Default is 0."
-    echo "  aa_threshold=value   Sets automatic trace mode stopping the session if latency in us is hit. Default is 100."
-    echo "  threshold=value      If set, stops trace if the thread latency is higher than the value in us. Default is 0."
-    echo "  events=value         Allows specifying multiple trace events. Default is blank."
-    echo "  custom_options=value Allows specifying custom options. Default is blank."
+    echo "  RTLA_TOP=value       Default is 'n'. Choices are 'y' or 'n'."
+    echo "  RTLA_MODE=value      Set mode. Default is 'error'. Choices are 'timerlat', 'hwnoise', or 'osnoise'."
+    echo "  STORAGE_MODE=value   Set storage mode. Default is 'n'. Choices are 'y' or 'n'."
+    echo "  PAUSE=value          Pause after run. Default is 'y'. Choices are 'y' or 'n'."
+    echo "  DELAY=value          Specify how many seconds to DELAY before test start. Default is 0."
+    echo "  AA_THRESHOLD=value   Sets automatic trace mode stopping the session if latency in us is hit. Default is 100."
+    echo "  THRESHOLD=value      If set, stops trace if the thread latency is higher than the value in us. Default is 0."
+    echo "  EVENTS=value         Allows specifying multiple trace events. Default is blank. This should be provided as a comma separated list."
+    echo "  custom_options=value Allows specifying custom options. Default is blank. Provide as a space separated list of options."
     exit 0
 fi
 
@@ -38,37 +39,37 @@ fi
 source common-libs/functions.sh
 
 # Initialize default variables
-rtla_mode=${rtla_mode:-"error"}
-storage_mode=${storage_mode:-n}
-pause=${pause:-"y"}
+RTLA_MODE=${RTLA_MODE:-"error"}
+STORAGE_MODE=${STORAGE_MODE:-n}
+PAUSE=${PAUSE:-"y"}
 DISABLE_CPU_BALANCE=${DISABLE_CPU_BALANCE:-n}
-rtla_top=${rtla_top:-n}
-delay=${delay:-0}
+RTLA_TOP=${RTLA_TOP:-n}
+DELAY=${DELAY:-0}
 DURATION=${DURATION:-""}
 manual=${manual:-n}
-aa_threshold=${aa_threshold:-100}
-threshold=${threshold:-0}
-events=${events:-""}
-custom_options=${custom_options:-""}
+AA_THRESHOLD=${AA_THRESHOLD:-100}
+THRESHOLD=${THRESHOLD:-0}
+EVENTS=${EVENTS:-""}
+CUSTOM_OPTIONS=${CUSTOM_OPTIONS:-""}
 
 # convert the custom_options string into an array
 original_ifs="$IFS" #for resetting IFS
-IFS=' ' read -r -a custom_options_arr <<< "$custom_options"
+IFS=' ' read -r -a custom_options_arr <<< "$CUSTOM_OPTIONS"
 IFS=$original_ifs
-IFS=',' read -r -a events_array <<< $events
+IFS=',' read -r -a events_array <<< $EVENTS
 IFS=$original_ifs
 
 rtla_results="/root/rtla_results.txt"
 
 mode="hist"
 run_mode="hist"
-if [[ "$rtla_top" == "y" ]]; then
+if [[ "$RTLA_TOP" == "y" ]]; then
     mode="top"
     run_mode="top"
 fi
 
 # hwnoise does not support either hist or top, so set this to blank so we can use generic logic.
-if [[ "$rtla_mode" == "hwnoise" ]]; then
+if [[ "$RTLA_MODE" == "hwnoise" ]]; then
     mode=""
     run_mode=top
 fi
@@ -96,15 +97,15 @@ function create_file() {
     timestamp=$(date +%Y%m%d%H%M%S)
 
     # Get the latest file number
-    last_file_number=$(ls $log_dir/"$rtla_mode"/"$run_mode" | grep $rtla_mode | grep $run_mode | sort -n | tail -n 1 | cut -c 1-1)
+    last_file_number=$(ls $log_dir/"$RTLA_MODE"/"$run_mode" | grep $RTLA_MODE | grep $run_mode | sort -n | tail -n 1 | cut -c 1-1)
 
     # If no files found create the first file
     if [ -z "$last_file_number" ]; then
-        file_path="$log_dir/"$rtla_mode"/"$run_mode"/1_"$rtla_mode"_"$run_mode"-$timestamp.log"
+        file_path="$log_dir/"$RTLA_MODE"/"$run_mode"/1_"$RTLA_MODE"_"$run_mode"-$timestamp.log"
     else
         # If files found, increment the last file number and create a new file
         new_file_number=$((last_file_number + 1))
-        file_path="$log_dir/"$rtla_mode"/"$run_mode"/${new_file_number}_"$rtla_mode"_"$run_mode"-$timestamp.log"
+        file_path="$log_dir/"$RTLA_MODE"/"$run_mode"/${new_file_number}_"$RTLA_MODE"_"$run_mode"-$timestamp.log"
     fi
 
     touch "$file_path"
@@ -112,7 +113,7 @@ function create_file() {
 }
 
 # No storage option for rtla top mode
-if [[ "$storage_mode" == "y" ]]; then
+if [[ "$STORAGE_MODE" == "y" ]]; then
     path=$(create_file)
     echo "Storing log files at $path" | tee -a $path
     storage() { tee -a "$path"; }
@@ -164,12 +165,12 @@ echo "**** uid: $UID ****" | storage
 release=$(cat /etc/os-release | sed -n -r 's/VERSION_ID="(.).*/\1/p')
 
 # Check the mode
-case "$rtla_mode" in
+case "$RTLA_MODE" in
   "timerlat"|"hwnoise"|"osnoise")
-    echo "Operating in $rtla_mode mode." | storage
+    echo "Operating in $RTLA_MODE mode." | storage
     ;;
   *)
-    echo "Error: Invalid mode. Please set rtla_mode to 'timerlat', 'hwnoise', or 'osnoise'." | storage
+    echo "Error: Invalid mode. Please set RTLA_MODE to 'timerlat', 'hwnoise', or 'osnoise'." | storage
     exit 1
     ;;
 esac
@@ -196,17 +197,17 @@ fi
 trap sigfunc TERM INT SIGUSR1
 
 mode="hist"
-if [[ "$rtla_top" == "y" ]]; then
+if [[ "$RTLA_TOP" == "y" ]]; then
     mode="top"
 fi
 
 # hwnoise does not support either hist or top, so set this to blank so we can use generic logic.
-if [[ "$rtla_mode" == "hwnoise" ]]; then
+if [[ "$RTLA_MODE" == "hwnoise" ]]; then
     mode=""
 fi
 
 # Set the generic shared components of the tools
-command_args=("rtla" "$rtla_mode" "$mode" "-c" "$cpulist")
+command_args=("rtla" "$RTLA_MODE" "$mode" "-c" "$cpulist")
 
 # Set the generic shared options
 if [[ -z "${DURATION}" ]]; then
@@ -221,24 +222,24 @@ else
     echo "Running with default priority." | storage
 fi
 
-if [[ -n "$custom_options" ]]; then
+if [[ -n "$CUSTOM_OPTIONS" ]]; then
     for opt in "${custom_options_arr[@]}"; do
         command_args=("${command_args[@]}" "$opt")
     done
 fi
 
-if [[ -n "$events" ]]; then
+if [[ -n "$EVENTS" ]]; then
     for e in "${events_array[@]}"; do
         command_args=("${command_args[@]}" "-e" "$e")
     done
 fi
 
-if [[ "${threshold}" -ne 0 ]]; then
-    command_args=("${command_args[@]}" "-T" "$threshold")
-elif [[ "${aa_threshold}" -eq 0 && "${threshold}" -eq 0 ]]; then
+if [[ "${THRESHOLD}" -ne 0 ]]; then
+    command_args=("${command_args[@]}" "-T" "$THRESHOLD")
+elif [[ "${AA_THRESHOLD}" -eq 0 && "${THRESHOLD}" -eq 0 ]]; then
     echo "Not using --auto-analysis feature"
 else
-    command_args=("${command_args[@]}" "-a" "$aa_threshold")
+    command_args=("${command_args[@]}" "-a" "$AA_THRESHOLD")
 fi
 
 
@@ -248,22 +249,22 @@ if [[ "${manual}" == "y" ]]; then
     sleep infinity
 fi
 
-if [[ "${delay}" != "0" ]]; then
-    echo "sleep ${delay} before test" | storage
-    sleep ${delay}
+if [[ "${DELAY}" != "0" ]]; then
+    echo "sleep ${DELAY} before test" | storage
+    sleep ${DELAY}
 fi
 
 # Due to some wierdness in the hist and top outputs, the 
-# storage() function swallows this output when storage_mode=n
+# storage() function swallows this output when STORAGE_MODE=n
 # Setting this so that the rtla output is not swallowed.
-if [[ "$storage_mode" == "y" ]]; then
+if [[ "$STORAGE_MODE" == "y" ]]; then
     "${command_args[@]}" | storage
 else 
     "${command_args[@]}"
 fi
 
 
-if [[ "$pause" == "y" ]]; then
+if [[ "$PAUSE" == "y" ]]; then
     sleep infinity
 fi 
 
