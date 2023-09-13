@@ -12,6 +12,7 @@
 #   AA_THRESHOLD (default 100, sets automatic trace mode stopping the session if latency in us is hit. A value of 0 disables this feature)
 #   THRESHOLD (default 0, if set, stops trace if the thread latency is higher than the argument in us. This overrides the -a flag and its value if it is not 0)
 #   EVENTS (Allows specifying multiple trace events. Default is blank. This should be provided as a comma separated list.)
+#   CHECK_US (Allows RTLA to also check for userspace induced latency. Options are 'y' or 'n'. Default is 'n'.)
 #   CUSTOM_OPTIONS (Allows specifying custom options. Default is blank. Provide as a space separated list of options.)
 
 if [[ "${help:-}" == "y" ]]; then
@@ -31,7 +32,8 @@ if [[ "${help:-}" == "y" ]]; then
     echo "  AA_THRESHOLD=value   Sets automatic trace mode stopping the session if latency in us is hit. Default is 100."
     echo "  THRESHOLD=value      If set, stops trace if the thread latency is higher than the value in us. Default is 0."
     echo "  EVENTS=value         Allows specifying multiple trace events. Default is blank. This should be provided as a comma separated list."
-    echo "  custom_options=value Allows specifying custom options. Default is blank. Provide as a space separated list of options."
+    echo "  CHECK_US=value       Allows RTLA to also check for userspace induced latency. Options are 'y' or 'n'. Default is 'n'."
+    echo "  CUSTOM_OPTIONS=value Allows specifying custom options. Default is blank. Provide as a space separated list of options."
     exit 0
 fi
 
@@ -50,6 +52,7 @@ manual=${manual:-n}
 AA_THRESHOLD=${AA_THRESHOLD:-100}
 THRESHOLD=${THRESHOLD:-0}
 EVENTS=${EVENTS:-""}
+CHECK_US=${CHECK_US:-n}
 CUSTOM_OPTIONS=${CUSTOM_OPTIONS:-""}
 
 # convert the custom_options string into an array
@@ -220,6 +223,10 @@ if [[ -n "${PRIO}" ]]; then
     command_args=("${command_args[@]}" "-P" "${PRIO}")
 else
     echo "Running with default priority." | storage
+fi
+
+if [[ "${CHECK_US}" == "y" ]]; then
+    command_args=("${command_args[@]}" "-u")
 fi
 
 if [[ -n "$CUSTOM_OPTIONS" ]]; then
