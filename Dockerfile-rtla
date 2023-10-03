@@ -1,13 +1,74 @@
-# Using fedora to get a recent version of the rtla package
-FROM fedora:39
+ARG BASE_IMAGE=fedora
+ARG RHEL_HOST=false
+ARG RTLA_UPSTREAM=false
+
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RHEL_HOST
+ARG RTLA_UPSTREAM
+RUN echo "Debug: BASE_IMAGE=${BASE_IMAGE}, RHEL_HOST=${RHEL_HOST}, RTLA_UPSTREAM=${RTLA_UPSTREAM}"
+
+# Use shell to check image_name conditions
+RUN if [[ ("$BASE_IMAGE" != "ubi9" && "$BASE_IMAGE" != "centos:stream9" && "$BASE_IMAGE" != "centos:stream9" && "$BASE_IMAGE" != "fedora") ]]; then \
+    echo "ERROR: Invalid BASE_IMAGE given: ${BASE_IMAGE}."; \ 
+    echo "ERROR: The build-arg BASE_IMAGE must be either 'ubi9' for registered host or 'centos:stream9' for non-rhel host"; \
+    exit 1; \
+    fi
+
+# Use shell to check rhel host build conditions
+RUN if [[ "$RHEL_HOST" == "false" && "$BASE_IMAGE" == "ubi9" ]]; then \
+    echo "ERROR: You cannot use the ubi9 image on a non-RHEL host. If you have a RHEL host, set the '--build-arg RHEL_HOST=true'."; \
+    echo "ERROR: If you do not have a registered rhel host, set '--build-arg BASE_IMAGE=centos:stream9' instead."; \
+    exit 1; \
+    fi
+    
+# Set user to root
 USER root
-COPY rtla/cmd.sh /root
+
+# Determine the correct repo to use based on if we want upstream build or not. 
+# Chain all steps together so that the image size is smaller. 
+# If upstream enabled, build rtla from source. Otherwise,
+# simply pull from repos
+RUN if [[ "$RTLA_UPSTREAM" == "true" ]]; then \
+        base_image_check=$(cat /etc/redhat-release | awk '{print $1}'); \
+        if [ "$base_image_check" = "CentOS" ]; then \
+            enable_repo="crb"; \
+        else \
+            enable_repo="codeready-builder-for-rhel-9-$(arch)-rpms"; \
+        fi; \
+        dnf -y update && \
+        dnf --enablerepo=$enable_repo -y install \
+            libtraceevent-devel libtracefs-devel python3-docutils git make gcc wget bzip2 && \
+        git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
+        cd linux/tools/tracing/rtla/ && \
+        make && \
+        make install && \
+        cd ../../../../ && rm -rf linux; \
+        # Only remove packages that are not required at runtime
+        dnf remove -y python3-docutils git make gcc wget bzip2; \ 
+    else \
+        dnf install rtla -y; \
+        echo "INFO: Pulling from repos. Please use '--build-arg RTLA_UPSTREAM=true' to build from upstream"; \   
+    fi; \
+    dnf clean all && rm -rf /var/cache/yum;
+
+# Install dumby init system
+RUN curl -L -o /root/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
+    && chmod 777 /root/dumb-init
+
+# Installs the functions.sh library needed for cmd.sh hook
+# This includes the functions for convert_number_range, get_allowed_cpuset, disable_balance, enable_balance
 COPY common-libs /root/common-libs
-RUN yum -y install rtla \
-    && yum clean all && rm -rf /var/cache/yum \
-    && curl -L -o /root/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
-    && chmod 777 /root/dumb-init \
-    && chmod 777 /root/cmd.sh
+# Moving this to the end so that rebuilds are quicker when modifying cmd.sh
+COPY rtla/cmd.sh /root
+RUN chmod 777 /root/cmd.sh
+
+# Create a log directory
+RUN mkdir /var/log/app
+
 WORKDIR /root
 ENTRYPOINT ["/root/dumb-init", "--"]
 CMD ["/root/cmd.sh"]
+
+

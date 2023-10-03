@@ -37,6 +37,9 @@ spec:
       value: "20"
     - name: EXTRA_ARGS
       value: "--quiet"
+    # We can default this to 1 instead in the cmd.sh script  
+    - name: HOUSEKEEPING_PER_NUMA_NODE
+      value: "1"
     securityContext:
       # Required for access to /sys/kernel/debug on the host
       privileged: true
